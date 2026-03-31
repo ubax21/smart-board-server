@@ -10,8 +10,8 @@ import java.time.format.DateTimeFormatter;
 
 /**
  * Akıllı Tahta Yönetim Sunucusu (Java WebSocket)
- * Derlemek için: javac -cp "Java-WebSocket-1.5.3.jar:slf4j-api-1.7.36.jar" SmartBoardServer.java
- * Çalıştırmak için: java -cp ".:Java-WebSocket-1.5.3.jar:slf4j-api-1.7.36.jar" SmartBoardServer
+ * Derlemek için: javac -cp "kütüphane/*" SmartBoardServer.java
+ * Çalıştırmak için: java -cp ".:kütüphane/*" SmartBoardServer
  */
 public class SmartBoardServer extends WebSocketServer {
 
@@ -63,8 +63,6 @@ public class SmartBoardServer extends WebSocketServer {
     public void onMessage(WebSocket conn, String message) {
         System.out.println("Gelen Mesaj: " + message);
         
-        // Gelen JSON verisini basit String operasyonlarıyla çözümlüyoruz (Harici bağımlılık azaltmak için)
-        // Gerçek kurumsal bir projede (6000+ satırlık aşamada) buraya GSON veya Jackson kütüphanesi entegre edilmelidir.
         try {
             if (message.contains("\"type\":\"auth\"")) {
                 handleAuthentication(conn, message);
@@ -87,7 +85,6 @@ public class SmartBoardServer extends WebSocketServer {
             System.out.println("Yeni bir Admin sisteme giriş yaptı.");
             broadcastBoardListToAdmins(); // Admine mevcut tahtaları gönder
         } else if (json.contains("\"role\":\"board\"")) {
-            // JSON içinden board_id çıkarma (Örn: {"type":"auth", "role":"board", "board_id":"11-C"})
             String boardId = extractJsonValue(json, "board_id");
             if (boardId != null) {
                 connectedBoards.put(boardId, conn);
@@ -110,12 +107,10 @@ public class SmartBoardServer extends WebSocketServer {
         String payload = "{\"type\":\"command\", \"action\":\"" + command + "\"}";
 
         if ("all".equals(target) || "lock_all".equals(command) || "unlock_all".equals(command)) {
-            // Tüm tahtalara gönder
             for (WebSocket boardConn : connectedBoards.values()) {
                 boardConn.send(payload);
             }
         } else if (target != null && connectedBoards.containsKey(target)) {
-            // Belirli bir tahtaya gönder
             connectedBoards.get(target).send(payload);
         }
     }
@@ -167,12 +162,10 @@ public class SmartBoardServer extends WebSocketServer {
             try {
                 adminConn.send(response);
             } catch (Exception e) {
-                // Ignore dead connections
             }
         }
     }
 
-    // Yardımcı Metod: Basit JSON ayrıştırıcı (Harici kütüphane gereksinimini kaldırmak için)
     private String extractJsonValue(String json, String key) {
         String searchKey = "\"" + key + "\":\"";
         int startIndex = json.indexOf(searchKey);
@@ -196,7 +189,10 @@ public class SmartBoardServer extends WebSocketServer {
     }
 
     public static void main(String[] args) {
-        int port = 8887; // Varsayılan port
+        // Render portu otomatik atadığı için 8080 veya PORT çevre değişkenini kullanmalıyız
+        String portStr = System.getenv("PORT");
+        int port = (portStr != null) ? Integer.parseInt(portStr) : 8080;
+        
         SmartBoardServer server = new SmartBoardServer(port);
         server.setReuseAddr(true);
         server.start();
